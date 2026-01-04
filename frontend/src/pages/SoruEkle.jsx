@@ -344,26 +344,14 @@ export default function SoruEkle() {
                 <button
                   type="button"
                   onClick={() => insertLatex('_{}')}
-                  className="px-2 py-1 text-white rounded-lg border-2 border-primary-200 shadow-sm">
-                  <p className="text-sm font-semibold text-primary-700 mb-3 flex items-center">
-                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                      <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                    </svg>
-                    Matematiksel Önizleme
-                  </p>
-                  <div ref={previewRef} className="prose prose-sm max-w-none bg-gray-50 p-4 rounded border border-gray-200">
-                    {/* KaTeX renders here */}
-                  </div>
-                  <div className="mt-3 flex items-start space-x-2 text-xs text-gray-600 bg-blue-50 p-2 rounded">
-                    <svg className="w-4 h-4 text-blue-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                    <p>
-                      Satır içi formüller için <code className="bg-white px-1 rounded">$formül$</code> kullanın.
-                      Blok formüller için <code className="bg-white px-1 rounded">$$formül$$</code> kullanın.
-                    </p>
-                  </divlick={() => insertLatex('\\sum_{i=1}^{n}')}
+                  className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100"
+                  title="Alt simge"
+                >
+                  x₁
+                </button>
+                <button
+                  type="button"
+                  onClick={() => insertLatex('\\sum_{i=1}^{n}')}
                   className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100"
                   title="Toplam"
                 >
