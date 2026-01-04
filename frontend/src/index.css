@@ -48,4 +48,10 @@
   .badge-info {
     @apply bg-blue-100 text-blue-800;
   }
+  
+  /* KaTeX display formüllerini sola hizala */
+  .katex-left-align .katex-display {
+    text-align: left !important;
+    margin: 0.5em 0 !important;
+  }
 }

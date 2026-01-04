@@ -163,7 +163,7 @@ export default function SoruDetay() {
 
         <div className="prose max-w-none">
           <h3 className="text-xl font-semibold mb-3">Soru Metni</h3>
-          <div ref={soruMetniRef} className="text-gray-900 text-base leading-relaxed">
+          <div ref={soruMetniRef} className="text-gray-900 text-base leading-relaxed katex-left-align">
             {/* LaTeX renders here */}
           </div>
         </div>
@@ -176,7 +176,7 @@ export default function SoruDetay() {
               </svg>
               Matematiksel İfadeler
             </h4>
-            <div ref={latexKoduRef} className="text-gray-800 bg-white p-4 rounded border border-blue-100">
+            <div ref={latexKoduRef} className="text-gray-800 bg-white p-4 rounded border border-blue-100 katex-left-align">
               {/* LaTeX code renders here */}
             </div>
           </div>
