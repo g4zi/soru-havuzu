@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { soruAPI } from '../services/api';
 import useAuthStore from '../store/authStore';
+import MesajKutusu from '../components/MesajKutusu';
 
 export default function DizgiYonetimi() {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const [sorular, setSorular] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSoru, setSelectedSoru] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showMesaj, setShowMesaj] = useState(null);
   const [revizeNotu, setRevizeNotu] = useState('');
 
   useEffect(() => {
@@ -104,6 +108,20 @@ export default function DizgiYonetimi() {
                 </div>
 
                 <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => navigate(`/sorular/${soru.id}`)}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    Detay
+                  </button>
+
+                  <button
+                    onClick={() => setShowMesaj(showMesaj === soru.id ? null : soru.id)}
+                    className="btn btn-info btn-sm"
+                  >
+                    💬 Mesaj
+                  </button>
+
                   {soru.durum === 'beklemede' && (
                     <button
                       onClick={() => handleDurumGuncelle(soru.id, 'dizgide')}
@@ -147,6 +165,19 @@ export default function DizgiYonetimi() {
                   alt="Soru"
                   className="max-w-md rounded border"
                 />
+              )}
+
+              {/* Mesajlaşma Alanı */}
+              {showMesaj === soru.id && (
+                <div className="mt-4 border-t pt-4">
+                  <div className="h-[400px]">
+                    <MesajKutusu
+                      soruId={soru.id}
+                      soruSahibi={{ ad_soyad: soru.olusturan_ad }}
+                      dizgici={{ ad_soyad: user.ad_soyad }}
+                    />
+                  </div>
+                </div>
               )}
             </div>
           ))}
