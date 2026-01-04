@@ -92,11 +92,15 @@ router.put('/:id', authenticate, async (req, res, next) => {
     if (req.user.rol === 'admin') {
       if (ekip_id !== undefined) {
         updates.push(`ekip_id = $${paramCount++}`);
-        values.push(ekip_id);
+        values.push(ekip_id || null);
       }
       if (brans_id !== undefined) {
         updates.push(`brans_id = $${paramCount++}`);
-        values.push(brans_id);
+        values.push(brans_id || null);
+      }
+      if (req.body.rol) {
+        updates.push(`rol = $${paramCount++}`);
+        values.push(req.body.rol);
       }
       if (aktif !== undefined) {
         updates.push(`aktif = $${paramCount++}`);
