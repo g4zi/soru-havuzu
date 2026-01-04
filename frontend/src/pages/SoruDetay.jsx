@@ -19,12 +19,6 @@ export default function SoruDetay() {
     loadSoru();
   }, [id]);
 
-  useEffect(() => {
-    if (soru) {
-      renderLatexContent();
-    }
-  }, [soru]);
-
   const renderLatexInElement = (element, content) => {
     if (!element || !content) return;
     
@@ -60,19 +54,21 @@ export default function SoruDetay() {
     element.innerHTML = html;
   };
 
-  const renderLatexContent = () => {
-    if (soruMetniRef.current && soru?.soru_metni) {
-      renderLatexInElement(soruMetniRef.current, soru.soru_metni);
-    }
-    if (latexKoduRef.current && soru?.latex_kodu) {
-      renderLatexInElement(latexKoduRef.current, soru.latex_kodu);
-    }
-  };
-
   const loadSoru = async () => {
     try {
       const response = await soruAPI.getById(id);
-      setSoru(response.data.data);
+      const soruData = response.data.data;
+      setSoru(soruData);
+      
+      // Soru yüklendikten sonra LaTeX render et
+      setTimeout(() => {
+        if (soruMetniRef.current && soruData?.soru_metni) {
+          renderLatexInElement(soruMetniRef.current, soruData.soru_metni);
+        }
+        if (latexKoduRef.current && soruData?.latex_kodu) {
+          renderLatexInElement(latexKoduRef.current, soruData.latex_kodu);
+        }
+      }, 0);
     } catch (error) {
       alert('Soru yüklenemedi');
       navigate('/sorular');
