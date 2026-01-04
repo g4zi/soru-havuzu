@@ -84,6 +84,7 @@ export const soruAPI = {
   delete: (id) => api.delete(`/sorular/${id}`),
   updateDurum: (id, data) => api.put(`/sorular/${id}/durum`, data),
   getStats: () => api.get('/sorular/stats/genel'),
+  getDetayliStats: () => api.get('/sorular/stats/detayli'),
 };
 
 // Bildirim API

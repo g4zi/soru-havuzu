@@ -484,4 +484,134 @@ router.put('/:id/durum', authenticate, async (req, res, next) => {
   }
 });
 
+// Admin detaylı istatistikler
+router.get('/stats/detayli', authenticate, async (req, res, next) => {
+  try {
+    if (req.user.rol !== 'admin') {
+      throw new AppError('Bu işlem için yetkiniz yok', 403);
+    }
+
+    // Genel istatistikler
+    const genelStats = await pool.query(`
+      SELECT 
+        COUNT(*) as toplam_soru,
+        COUNT(*) FILTER (WHERE durum = 'beklemede') as beklemede,
+        COUNT(*) FILTER (WHERE durum = 'dizgide') as dizgide,
+        COUNT(*) FILTER (WHERE durum = 'tamamlandi') as tamamlandi,
+        COUNT(*) FILTER (WHERE durum = 'revize_gerekli') as revize_gerekli,
+        COUNT(*) FILTER (WHERE zorluk_seviyesi = 'kolay') as kolay,
+        COUNT(*) FILTER (WHERE zorluk_seviyesi = 'orta') as orta,
+        COUNT(*) FILTER (WHERE zorluk_seviyesi = 'zor') as zor,
+        COUNT(*) FILTER (WHERE fotograf_url IS NOT NULL) as fotografli,
+        COUNT(*) FILTER (WHERE latex_kodu IS NOT NULL AND latex_kodu != '') as latexli
+      FROM sorular
+    `);
+
+    // Branş bazlı istatistikler
+    const bransStats = await pool.query(`
+      SELECT 
+        b.id,
+        b.brans_adi,
+        e.ekip_adi,
+        COUNT(s.id) as soru_sayisi,
+        COUNT(*) FILTER (WHERE s.durum = 'beklemede') as beklemede,
+        COUNT(*) FILTER (WHERE s.durum = 'dizgide') as dizgide,
+        COUNT(*) FILTER (WHERE s.durum = 'tamamlandi') as tamamlandi
+      FROM branslar b
+      LEFT JOIN ekipler e ON b.ekip_id = e.id
+      LEFT JOIN sorular s ON b.id = s.brans_id
+      GROUP BY b.id, b.brans_adi, e.ekip_adi
+      ORDER BY soru_sayisi DESC
+    `);
+
+    // Kullanıcı performans istatistikleri
+    const kullaniciStats = await pool.query(`
+      SELECT 
+        k.id,
+        k.ad_soyad,
+        k.email,
+        k.rol,
+        b.brans_adi,
+        COUNT(s.id) as olusturulan_soru,
+        COUNT(*) FILTER (WHERE s.durum = 'tamamlandi') as tamamlanan
+      FROM kullanicilar k
+      LEFT JOIN branslar b ON k.brans_id = b.id
+      LEFT JOIN sorular s ON k.id = s.olusturan_kullanici_id
+      WHERE k.rol = 'soru_yazici'
+      GROUP BY k.id, k.ad_soyad, k.email, k.rol, b.brans_adi
+      ORDER BY olusturulan_soru DESC
+      LIMIT 10
+    `);
+
+    // Dizgici performans istatistikleri
+    const dizgiStats = await pool.query(`
+      SELECT 
+        k.id,
+        k.ad_soyad,
+        k.email,
+        b.brans_adi,
+        COUNT(dg.id) as tamamlanan_dizgi,
+        AVG(EXTRACT(EPOCH FROM (dg.tamamlanma_tarihi - s.olusturulma_tarihi))/3600)::numeric(10,2) as ortalama_sure_saat
+      FROM kullanicilar k
+      LEFT JOIN branslar b ON k.brans_id = b.id
+      LEFT JOIN dizgi_gecmisi dg ON k.id = dg.dizgici_id
+      LEFT JOIN sorular s ON dg.soru_id = s.id
+      WHERE k.rol = 'dizgici'
+      GROUP BY k.id, k.ad_soyad, k.email, b.brans_adi
+      ORDER BY tamamlanan_dizgi DESC
+      LIMIT 10
+    `);
+
+    // Son 30 günlük trend
+    const trendStats = await pool.query(`
+      SELECT 
+        DATE(olusturulma_tarihi) as tarih,
+        COUNT(*) as soru_sayisi,
+        COUNT(*) FILTER (WHERE durum = 'tamamlandi') as tamamlanan
+      FROM sorular
+      WHERE olusturulma_tarihi >= CURRENT_DATE - INTERVAL '30 days'
+      GROUP BY DATE(olusturulma_tarihi)
+      ORDER BY tarih DESC
+    `);
+
+    // Kullanıcı sayıları
+    const kullaniciSayilari = await pool.query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE rol = 'admin') as admin_sayisi,
+        COUNT(*) FILTER (WHERE rol = 'soru_yazici') as soru_yazici_sayisi,
+        COUNT(*) FILTER (WHERE rol = 'dizgici') as dizgici_sayisi,
+        COUNT(*) as toplam_kullanici
+      FROM kullanicilar
+    `);
+
+    // Ekip sayıları
+    const ekipStats = await pool.query(`
+      SELECT COUNT(*) as toplam_ekip FROM ekipler
+    `);
+
+    // Branş sayıları
+    const bransStatsCount = await pool.query(`
+      SELECT COUNT(*) as toplam_brans FROM branslar
+    `);
+
+    res.json({
+      success: true,
+      data: {
+        genel: genelStats.rows[0],
+        branslar: bransStats.rows,
+        kullanicilar: kullaniciStats.rows,
+        dizgiciler: dizgiStats.rows,
+        trend: trendStats.rows,
+        sistem: {
+          ...kullaniciSayilari.rows[0],
+          toplam_ekip: ekipStats.rows[0].toplam_ekip,
+          toplam_brans: bransStatsCount.rows[0].toplam_brans
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;
