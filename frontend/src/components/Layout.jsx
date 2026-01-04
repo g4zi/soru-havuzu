@@ -46,6 +46,9 @@ export default function Layout() {
                 <Link to="/sorular" className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium">
                   Sorular
                 </Link>
+                <Link to="/mesajlar" className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium">
+                  💬 Mesajlar
+                </Link>
                 {user?.rol === 'dizgici' && (
                   <Link to="/dizgi-yonetimi" className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium">
                     Dizgi Yönetimi

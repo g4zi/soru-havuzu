@@ -1,5 +1,6 @@
 import pool from '../config/database.js';
 import { createAdvancedFeatures } from './migrations/002_gelismis_ozellikler.js';
+import { createUserMessages } from './migrations/003_kullanici_mesajlari.js';
 
 const createTables = async () => {
   const client = await pool.connect();
@@ -84,6 +85,9 @@ const createTables = async () => {
     
     // Gelişmiş özellikler migration'ını çalıştır
     await createAdvancedFeatures();
+    
+    // Kullanıcı mesajları migration'ını çalıştır
+    await createUserMessages();
     
   } catch (error) {
     await client.query('ROLLBACK');

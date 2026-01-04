@@ -94,9 +94,19 @@ export const bildirimAPI = {
   markAllAsRead: () => api.put('/bildirimler/hepsini-okundu-isaretle'),
 };
 
-// Mesaj API
+// Mesaj API (Soru bazlı)
 export const mesajAPI = {
   getBySoruId: (soruId) => api.get(`/mesajlar/soru/${soruId}`),
   send: (data) => api.post('/mesajlar', data),
   delete: (id) => api.delete(`/mesajlar/${id}`),
+};
+
+// Kullanıcı Mesaj API (Kişiler arası)
+export const kullaniciMesajAPI = {
+  getKullanicilar: () => api.get('/kullanici-mesajlar/kullanicilar'),
+  getKonusmalar: () => api.get('/kullanici-mesajlar/konusmalar'),
+  getKonusma: (kullaniciId) => api.get(`/kullanici-mesajlar/konusma/${kullaniciId}`),
+  send: (data) => api.post('/kullanici-mesajlar/gonder', data),
+  delete: (id) => api.delete(`/kullanici-mesajlar/${id}`),
+  getOkunmamisSayisi: () => api.get('/kullanici-mesajlar/okunmamis-sayisi'),
 };
