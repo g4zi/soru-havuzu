@@ -637,7 +637,7 @@ router.get('/rapor', authenticate, authorize(['admin']), async (req, res, next) 
         COUNT(*) FILTER (WHERE zorluk_seviyesi = 'orta') as orta,
         COUNT(*) FILTER (WHERE zorluk_seviyesi = 'zor') as zor
       FROM sorular
-      WHERE olusturulma_tarihi >= $1 AND olusturulma_tarihi <= $2
+      WHERE olusturulma_tarihi >= $1::date AND olusturulma_tarihi < ($2::date + interval '1 day')
     `;
 
     // Branş bazında detaylı rapor
@@ -646,16 +646,16 @@ router.get('/rapor', authenticate, authorize(['admin']), async (req, res, next) 
         b.brans_adi,
         e.ekip_adi,
         COUNT(s.id) as toplam_soru,
-        COUNT(*) FILTER (WHERE s.durum = 'tamamlandi') as tamamlanan,
-        COUNT(*) FILTER (WHERE s.durum = 'beklemede') as bekleyen,
-        COUNT(*) FILTER (WHERE s.durum = 'devam_ediyor') as devam_eden,
-        COUNT(*) FILTER (WHERE s.durum = 'red_edildi') as reddedilen,
-        ROUND(AVG(EXTRACT(EPOCH FROM (s.tamamlanma_tarihi - s.olusturulma_tarihi))/3600), 2) as ortalama_sure_saat
+        COUNT(CASE WHEN s.durum = 'tamamlandi' THEN 1 END) as tamamlanan,
+        COUNT(CASE WHEN s.durum = 'beklemede' THEN 1 END) as bekleyen,
+        COUNT(CASE WHEN s.durum = 'devam_ediyor' THEN 1 END) as devam_eden,
+        COUNT(CASE WHEN s.durum = 'red_edildi' THEN 1 END) as reddedilen,
+        ROUND(AVG(EXTRACT(EPOCH FROM (s.tamamlanma_tarihi - s.olusturulma_tarihi))/3600)::numeric, 2) as ortalama_sure_saat
       FROM branslar b
       LEFT JOIN ekipler e ON b.ekip_id = e.id
       LEFT JOIN sorular s ON b.id = s.brans_id 
-        AND s.olusturulma_tarihi >= $1 
-        AND s.olusturulma_tarihi <= $2
+        AND s.olusturulma_tarihi >= $1::date 
+        AND s.olusturulma_tarihi < ($2::date + interval '1 day')
       GROUP BY b.id, b.brans_adi, e.ekip_adi
       ORDER BY toplam_soru DESC
     `;
@@ -667,19 +667,20 @@ router.get('/rapor', authenticate, authorize(['admin']), async (req, res, next) 
         k.kullanici_adi,
         b.brans_adi,
         COUNT(s.id) as olusturulan_soru,
-        COUNT(*) FILTER (WHERE s.durum = 'tamamlandi') as tamamlanan,
-        COUNT(*) FILTER (WHERE s.durum = 'red_edildi') as reddedilen,
+        COUNT(CASE WHEN s.durum = 'tamamlandi' THEN 1 END) as tamamlanan,
+        COUNT(CASE WHEN s.durum = 'red_edildi' THEN 1 END) as reddedilen,
         ROUND(
-          (COUNT(*) FILTER (WHERE s.durum = 'tamamlandi')::float / 
-          NULLIF(COUNT(s.id), 0) * 100), 2
+          (COUNT(CASE WHEN s.durum = 'tamamlandi' THEN 1 END)::float / 
+          NULLIF(COUNT(s.id), 0) * 100)::numeric, 2
         ) as basari_orani
       FROM kullanicilar k
       LEFT JOIN branslar b ON k.brans_id = b.id
       LEFT JOIN sorular s ON k.id = s.olusturan_kullanici_id 
-        AND s.olusturulma_tarihi >= $1 
-        AND s.olusturulma_tarihi <= $2
+        AND s.olusturulma_tarihi >= $1::date 
+        AND s.olusturulma_tarihi < ($2::date + interval '1 day')
       WHERE k.rol = 'soru_yazici'
       GROUP BY k.id, k.ad_soyad, k.kullanici_adi, b.brans_adi
+      HAVING COUNT(s.id) > 0
       ORDER BY olusturulan_soru DESC
     `;
 
@@ -690,16 +691,17 @@ router.get('/rapor', authenticate, authorize(['admin']), async (req, res, next) 
         k.kullanici_adi,
         b.brans_adi,
         COUNT(s.id) as tamamlanan_soru,
-        ROUND(AVG(EXTRACT(EPOCH FROM (s.tamamlanma_tarihi - s.dizgiye_gonderilme_tarihi))/3600), 2) as ortalama_sure_saat,
-        COUNT(*) FILTER (WHERE s.durum = 'red_edildi') as reddedilen
+        ROUND(AVG(EXTRACT(EPOCH FROM (s.tamamlanma_tarihi - s.dizgiye_gonderilme_tarihi))/3600)::numeric, 2) as ortalama_sure_saat,
+        COUNT(CASE WHEN s.durum = 'red_edildi' THEN 1 END) as reddedilen
       FROM kullanicilar k
       LEFT JOIN branslar b ON k.brans_id = b.id
       LEFT JOIN sorular s ON k.id = s.dizgici_id 
-        AND s.dizgiye_gonderilme_tarihi >= $1 
-        AND s.dizgiye_gonderilme_tarihi <= $2
+        AND s.dizgiye_gonderilme_tarihi >= $1::date 
+        AND s.dizgiye_gonderilme_tarihi < ($2::date + interval '1 day')
         AND s.durum IN ('tamamlandi', 'red_edildi')
       WHERE k.rol = 'dizgici'
       GROUP BY k.id, k.ad_soyad, k.kullanici_adi, b.brans_adi
+      HAVING COUNT(s.id) > 0
       ORDER BY tamamlanan_soru DESC
     `;
 
@@ -708,9 +710,9 @@ router.get('/rapor', authenticate, authorize(['admin']), async (req, res, next) 
       SELECT 
         DATE(olusturulma_tarihi) as tarih,
         COUNT(*) as olusturulan,
-        COUNT(*) FILTER (WHERE durum = 'tamamlandi') as tamamlanan
+        COUNT(CASE WHEN durum = 'tamamlandi' THEN 1 END) as tamamlanan
       FROM sorular
-      WHERE olusturulma_tarihi >= $1 AND olusturulma_tarihi <= $2
+      WHERE olusturulma_tarihi >= $1::date AND olusturulma_tarihi < ($2::date + interval '1 day')
       GROUP BY DATE(olusturulma_tarihi)
       ORDER BY tarih
     `;
