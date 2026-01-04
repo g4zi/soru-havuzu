@@ -627,15 +627,15 @@ router.get('/rapor', authenticate, authorize(['admin']), async (req, res, next) 
     const genelQuery = `
       SELECT 
         COUNT(*) as toplam_soru,
-        COUNT(*) FILTER (WHERE durum = 'tamamlandi') as tamamlanan,
-        COUNT(*) FILTER (WHERE durum = 'beklemede') as bekleyen,
-        COUNT(*) FILTER (WHERE durum = 'devam_ediyor') as devam_eden,
-        COUNT(*) FILTER (WHERE durum = 'red_edildi') as reddedilen,
-        COUNT(*) FILTER (WHERE fotograf_url IS NOT NULL) as fotografli,
-        COUNT(*) FILTER (WHERE latex_kodu IS NOT NULL) as latexli,
-        COUNT(*) FILTER (WHERE zorluk_seviyesi = 'kolay') as kolay,
-        COUNT(*) FILTER (WHERE zorluk_seviyesi = 'orta') as orta,
-        COUNT(*) FILTER (WHERE zorluk_seviyesi = 'zor') as zor
+        COUNT(CASE WHEN durum = 'tamamlandi' THEN 1 END) as tamamlanan,
+        COUNT(CASE WHEN durum = 'beklemede' THEN 1 END) as bekleyen,
+        COUNT(CASE WHEN durum = 'devam_ediyor' THEN 1 END) as devam_eden,
+        COUNT(CASE WHEN durum = 'red_edildi' THEN 1 END) as reddedilen,
+        COUNT(CASE WHEN fotograf_url IS NOT NULL THEN 1 END) as fotografli,
+        COUNT(CASE WHEN latex_kodu IS NOT NULL THEN 1 END) as latexli,
+        COUNT(CASE WHEN zorluk_seviyesi = 'kolay' THEN 1 END) as kolay,
+        COUNT(CASE WHEN zorluk_seviyesi = 'orta' THEN 1 END) as orta,
+        COUNT(CASE WHEN zorluk_seviyesi = 'zor' THEN 1 END) as zor
       FROM sorular
       WHERE olusturulma_tarihi >= $1::date AND olusturulma_tarihi < ($2::date + interval '1 day')
     `;
