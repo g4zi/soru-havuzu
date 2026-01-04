@@ -664,7 +664,7 @@ router.get('/rapor', authenticate, authorize(['admin']), async (req, res, next) 
     const kullaniciQuery = `
       SELECT 
         k.ad_soyad,
-        k.kullanici_adi,
+        k.email,
         b.brans_adi,
         COUNT(s.id) as olusturulan_soru,
         COUNT(CASE WHEN s.durum = 'tamamlandi' THEN 1 END) as tamamlanan,
@@ -679,7 +679,7 @@ router.get('/rapor', authenticate, authorize(['admin']), async (req, res, next) 
         AND s.olusturulma_tarihi >= $1::date 
         AND s.olusturulma_tarihi < ($2::date + interval '1 day')
       WHERE k.rol = 'soru_yazici'
-      GROUP BY k.id, k.ad_soyad, k.kullanici_adi, b.brans_adi
+      GROUP BY k.id, k.ad_soyad, k.email, b.brans_adi
       HAVING COUNT(s.id) > 0
       ORDER BY olusturulan_soru DESC
     `;
@@ -688,7 +688,7 @@ router.get('/rapor', authenticate, authorize(['admin']), async (req, res, next) 
     const dizgiQuery = `
       SELECT 
         k.ad_soyad,
-        k.kullanici_adi,
+        k.email,
         b.brans_adi,
         COUNT(s.id) as tamamlanan_soru,
         ROUND(AVG(EXTRACT(EPOCH FROM (s.guncellenme_tarihi - s.dizgiye_gonderilme_tarihi))/3600)::numeric, 2) as ortalama_sure_saat,
@@ -700,7 +700,7 @@ router.get('/rapor', authenticate, authorize(['admin']), async (req, res, next) 
         AND s.dizgiye_gonderilme_tarihi < ($2::date + interval '1 day')
         AND s.durum IN ('tamamlandi', 'red_edildi')
       WHERE k.rol = 'dizgici'
-      GROUP BY k.id, k.ad_soyad, k.kullanici_adi, b.brans_adi
+      GROUP BY k.id, k.ad_soyad, k.email, b.brans_adi
       HAVING COUNT(s.id) > 0
       ORDER BY tamamlanan_soru DESC
     `;
