@@ -629,8 +629,8 @@ router.get('/rapor', authenticate, authorize(['admin']), async (req, res, next) 
         COUNT(*) as toplam_soru,
         COUNT(CASE WHEN durum = 'tamamlandi' THEN 1 END) as tamamlanan,
         COUNT(CASE WHEN durum = 'beklemede' THEN 1 END) as bekleyen,
-        COUNT(CASE WHEN durum = 'devam_ediyor' THEN 1 END) as devam_eden,
-        COUNT(CASE WHEN durum = 'red_edildi' THEN 1 END) as reddedilen,
+        COUNT(CASE WHEN durum = 'dizgide' THEN 1 END) as devam_eden,
+        0 as reddedilen,
         COUNT(CASE WHEN fotograf_url IS NOT NULL THEN 1 END) as fotografli,
         COUNT(CASE WHEN latex_kodu IS NOT NULL THEN 1 END) as latexli,
         COUNT(CASE WHEN zorluk_seviyesi = 'kolay' THEN 1 END) as kolay,
@@ -648,9 +648,13 @@ router.get('/rapor', authenticate, authorize(['admin']), async (req, res, next) 
         COUNT(s.id) as toplam_soru,
         COUNT(CASE WHEN s.durum = 'tamamlandi' THEN 1 END) as tamamlanan,
         COUNT(CASE WHEN s.durum = 'beklemede' THEN 1 END) as bekleyen,
-        COUNT(CASE WHEN s.durum = 'devam_ediyor' THEN 1 END) as devam_eden,
-        COUNT(CASE WHEN s.durum = 'red_edildi' THEN 1 END) as reddedilen,
-        ROUND(AVG(EXTRACT(EPOCH FROM (s.guncellenme_tarihi - s.olusturulma_tarihi))/3600)::numeric, 2) as ortalama_sure_saat
+        COUNT(CASE WHEN s.durum = 'dizgide' THEN 1 END) as devam_eden,
+        0 as reddedilen,
+        ROUND(AVG(
+          CASE WHEN s.durum = 'tamamlandi' 
+          THEN EXTRACT(EPOCH FROM (s.guncellenme_tarihi - s.olusturulma_tarihi))/3600 
+          END
+        )::numeric, 2) as ortalama_sure_saat
       FROM branslar b
       LEFT JOIN ekipler e ON b.ekip_id = e.id
       LEFT JOIN sorular s ON b.id = s.brans_id 
@@ -668,7 +672,7 @@ router.get('/rapor', authenticate, authorize(['admin']), async (req, res, next) 
         b.brans_adi,
         COUNT(s.id) as olusturulan_soru,
         COUNT(CASE WHEN s.durum = 'tamamlandi' THEN 1 END) as tamamlanan,
-        COUNT(CASE WHEN s.durum = 'red_edildi' THEN 1 END) as reddedilen,
+        0 as reddedilen,
         ROUND(
           (COUNT(CASE WHEN s.durum = 'tamamlandi' THEN 1 END)::float / 
           NULLIF(COUNT(s.id), 0) * 100)::numeric, 2
@@ -691,14 +695,17 @@ router.get('/rapor', authenticate, authorize(['admin']), async (req, res, next) 
         k.email,
         b.brans_adi,
         COUNT(s.id) as tamamlanan_soru,
-        ROUND(AVG(EXTRACT(EPOCH FROM (s.guncellenme_tarihi - s.dizgiye_gonderilme_tarihi))/3600)::numeric, 2) as ortalama_sure_saat,
-        COUNT(CASE WHEN s.durum = 'red_edildi' THEN 1 END) as reddedilen
+        ROUND(AVG(
+          CASE WHEN s.durum = 'tamamlandi' AND s.dizgici_id IS NOT NULL
+          THEN EXTRACT(EPOCH FROM (s.guncellenme_tarihi - s.olusturulma_tarihi))/3600
+          END
+        )::numeric, 2) as ortalama_sure_saat,
+        0 as reddedilen
       FROM kullanicilar k
       LEFT JOIN branslar b ON k.brans_id = b.id
       LEFT JOIN sorular s ON k.id = s.dizgici_id 
-        AND s.dizgiye_gonderilme_tarihi >= $1::date 
-        AND s.dizgiye_gonderilme_tarihi < ($2::date + interval '1 day')
-        AND s.durum IN ('tamamlandi', 'red_edildi')
+        AND s.olusturulma_tarihi >= $1::date 
+        AND s.olusturulma_tarihi < ($2::date + interval '1 day')
       WHERE k.rol = 'dizgici'
       GROUP BY k.id, k.ad_soyad, k.email, b.brans_adi
       HAVING COUNT(s.id) > 0
