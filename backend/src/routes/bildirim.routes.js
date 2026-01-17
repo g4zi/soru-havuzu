@@ -85,6 +85,49 @@ router.put('/hepsini-okundu-isaretle', authenticate, async (req, res, next) => {
   }
 });
 
+// Tüm kullanıcılara duyuru gönder (Admin)
+router.post('/duyuru', authenticate, async (req, res, next) => {
+  try {
+    // Admin kontrolü
+    if (req.user.rol !== 'admin') {
+      throw new AppError('Bu işlem için yetkiniz yok', 403);
+    }
+
+    const { baslik, mesaj, tip, link } = req.body;
+
+    if (!baslik || !mesaj) {
+      throw new AppError('Başlık ve mesaj gerekli', 400);
+    }
+
+    // Tüm kullanıcıları getir
+    const kullanicilarResult = await pool.query(
+      'SELECT id FROM kullanicilar WHERE id != $1',
+      [req.user.id] // Admin'i hariç tut
+    );
+
+    // Her kullanıcıya bildirim oluştur
+    const insertPromises = kullanicilarResult.rows.map(user => 
+      pool.query(
+        `INSERT INTO bildirimler (kullanici_id, baslik, mesaj, tip, link) 
+         VALUES ($1, $2, $3, $4, $5)`,
+        [user.id, baslik, mesaj, tip || 'duyuru', link]
+      )
+    );
+
+    await Promise.all(insertPromises);
+
+    res.json({
+      success: true,
+      message: `Duyuru ${kullanicilarResult.rows.length} kullanıcıya gönderildi`,
+      data: {
+        gonderilen_sayi: kullanicilarResult.rows.length
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Bildirim oluştur (helper function)
 export async function createNotification(kullanici_id, baslik, mesaj, tip = 'info', link = null) {
   try {

@@ -12,6 +12,7 @@ import Kullanicilar from './pages/Kullanicilar';
 import DizgiYonetimi from './pages/DizgiYonetimi';
 import Mesajlar from './pages/Mesajlar';
 import Raporlar from './pages/Raporlar';
+import Duyurular from './pages/Duyurular';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }) {
@@ -60,6 +61,11 @@ function App() {
         <Route path="raporlar" element={
           <AdminRoute>
             <Raporlar />
+          </AdminRoute>
+        } />
+        <Route path="duyurular" element={
+          <AdminRoute>
+            <Duyurular />
           </AdminRoute>
         } />
       </Route>

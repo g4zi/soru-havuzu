@@ -96,6 +96,7 @@ export const bildirimAPI = {
   getOkunmamiSayisi: () => api.get('/bildirimler/okunmamis-sayisi'),
   markAsRead: (id) => api.put(`/bildirimler/${id}/okundu`),
   markAllAsRead: () => api.put('/bildirimler/hepsini-okundu-isaretle'),
+  duyuruGonder: (data) => api.post('/bildirimler/duyuru', data),
 };
 
 // Mesaj API (Soru bazlı)
