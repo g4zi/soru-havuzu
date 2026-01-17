@@ -233,7 +233,46 @@ export default function Raporlar() {
   const downloadYedek = async () => {
     setYedekLoading(true);
     try {
-      cons className="flex justify-between items-start">
+      const response = await soruAPI.getYedek();
+      const yedekData = response.data.data;
+
+      // JSON dosyasını indir
+      const jsonStr = JSON.stringify(yedekData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `soru_havuzu_yedek_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      // Görselleri ve dosyaları indir linki göster
+      if (yedekData.sorular.some(s => s.fotograf_url || s.dosya_url)) {
+        const dosyaliSorular = yedekData.sorular.filter(s => s.fotograf_url || s.dosya_url);
+        let mesaj = `✅ JSON yedeği indirildi (${yedekData.toplam_soru} soru)\n\n`;
+        mesaj += `📁 ${dosyaliSorular.length} soruda görsel/dosya var.\n\n`;
+        mesaj += `Görselleri ve dosyaları indirmek için:\n`;
+        mesaj += `1. JSON dosyasını açın\n`;
+        mesaj += `2. fotograf_url ve dosya_url linklerini kullanın\n\n`;
+        mesaj += `Not: Cloudinary linkleri kalıcıdır ve doğrudan indirilebilir.`;
+        alert(mesaj);
+      } else {
+        alert(`✅ Yedek başarıyla indirildi!\n\nToplam ${yedekData.toplam_soru} soru kaydedildi.`);
+      }
+    } catch (error) {
+      console.error('Yedek indirme hatası:', error);
+      alert('Yedek indirilirken hata oluştu');
+    } finally {
+      setYedekLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Başlık */}
+      <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">📊 Analiz ve Raporlar</h1>
           <p className="mt-2 text-gray-600">Detaylı performans raporları oluşturun ve PDF olarak indirin</p>
