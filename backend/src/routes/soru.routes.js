@@ -28,7 +28,7 @@ const upload = multer({
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const { durum, brans_id, ekip_id, olusturan_id } = req.query;
-    
+
     let query = `
       SELECT s.*, 
              b.brans_adi, b.ekip_id,
@@ -42,7 +42,7 @@ router.get('/', authenticate, async (req, res, next) => {
       LEFT JOIN kullanicilar d ON s.dizgici_id = d.id
       WHERE 1=1
     `;
-    
+
     const params = [];
     let paramCount = 1;
 
@@ -52,9 +52,9 @@ router.get('/', authenticate, async (req, res, next) => {
       query += ` AND s.olusturan_kullanici_id = $${paramCount++}`;
       params.push(req.user.id);
     } else if (req.user.rol === 'dizgici') {
-      // Dizgici kendi branşındaki soruları görür
-      query += ` AND b.id = $${paramCount++}`;
-      params.push(req.user.brans_id);
+      // Dizgici atandığı tüm branşlardaki soruları görür
+      query += ` AND b.id IN (SELECT brans_id FROM kullanici_branslari WHERE kullanici_id = $${paramCount++})`;
+      params.push(req.user.id);
     }
 
     if (durum) {
@@ -78,7 +78,7 @@ router.get('/', authenticate, async (req, res, next) => {
     }
 
     query += ' ORDER BY s.olusturulma_tarihi DESC';
-    
+
     const result = await pool.query(query, params);
 
     res.json({
@@ -95,7 +95,7 @@ router.get('/', authenticate, async (req, res, next) => {
 router.get('/:id(\\d+)', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     const result = await pool.query(`
       SELECT s.*, 
              b.brans_adi, b.ekip_id,
@@ -164,7 +164,7 @@ router.post('/', [
     if (req.file) {
       const b64 = Buffer.from(req.file.buffer).toString('base64');
       const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-      
+
       const uploadResult = await cloudinary.uploader.upload(dataURI, {
         folder: 'soru-havuzu',
         resource_type: 'auto'
@@ -206,7 +206,7 @@ router.put('/:id(\\d+)', [
 
     // Soru sahibi kontrolü
     const checkResult = await pool.query('SELECT * FROM sorular WHERE id = $1', [id]);
-    
+
     if (checkResult.rows.length === 0) {
       throw new AppError('Soru bulunamadı', 404);
     }
@@ -229,7 +229,7 @@ router.put('/:id(\\d+)', [
 
       const b64 = Buffer.from(req.file.buffer).toString('base64');
       const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-      
+
       const uploadResult = await cloudinary.uploader.upload(dataURI, {
         folder: 'soru-havuzu',
         resource_type: 'auto'
@@ -342,7 +342,7 @@ router.delete('/:id(\\d+)', authenticate, async (req, res, next) => {
     const { id } = req.params;
 
     const checkResult = await pool.query('SELECT * FROM sorular WHERE id = $1', [id]);
-    
+
     if (checkResult.rows.length === 0) {
       throw new AppError('Soru bulunamadı', 404);
     }
@@ -356,7 +356,13 @@ router.delete('/:id(\\d+)', authenticate, async (req, res, next) => {
 
     // Cloudinary'den fotoğrafı sil
     if (soru.fotograf_public_id) {
-      await cloudinary.uploader.destroy(soru.fotograf_public_id);
+      try {
+        const deleteResult = await cloudinary.uploader.destroy(soru.fotograf_public_id);
+        console.log(`Cloudinary görsel silindi: ${soru.fotograf_public_id}`, deleteResult);
+      } catch (cloudinaryError) {
+        console.error(`Cloudinary görsel silinemedi: ${soru.fotograf_public_id}`, cloudinaryError);
+        // Cloudinary hatası olsa bile soru silinmeye devam edecek
+      }
     }
 
     await pool.query('DELETE FROM sorular WHERE id = $1', [id]);
@@ -380,8 +386,8 @@ router.get('/stats/genel', authenticate, async (req, res, next) => {
       whereClause = 'WHERE olusturan_kullanici_id = $1';
       params.push(req.user.id);
     } else if (req.user.rol === 'dizgici') {
-      whereClause = 'WHERE brans_id = $1';
-      params.push(req.user.brans_id);
+      whereClause = 'WHERE brans_id IN (SELECT brans_id FROM kullanici_branslari WHERE kullanici_id = $1)';
+      params.push(req.user.id);
     }
 
     const result = await pool.query(`
@@ -451,7 +457,7 @@ router.put('/:id(\\d+)/durum', authenticate, async (req, res, next) => {
       if (durum === 'revize_gerekli') {
         updateQuery += `, revize_notu = $${paramCount++}`;
         params.push(revize_notu || '');
-        
+
         // Soru yazıcıya bildirim gönder
         await createNotification(
           soru.olusturan_kullanici_id,
@@ -618,7 +624,7 @@ router.get('/stats/detayli', authenticate, async (req, res, next) => {
 router.get('/rapor', authenticate, authorize(['admin']), async (req, res, next) => {
   try {
     const { baslangic, bitis, tip } = req.query;
-    
+
     if (!baslangic || !bitis) {
       throw new AppError('Başlangıç ve bitiş tarihi gerekli', 400);
     }

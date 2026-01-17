@@ -12,6 +12,7 @@ export default function Kullanicilar() {
   const [formData, setFormData] = useState({
     ekip_id: '',
     brans_id: '',
+    brans_ids: [],
     rol: '',
     aktif: true,
   });
@@ -24,9 +25,15 @@ export default function Kullanicilar() {
     if (formData.ekip_id) {
       const ekipBranslar = branslar.filter(b => b.ekip_id === parseInt(formData.ekip_id));
       setFilteredBranslar(ekipBranslar);
-      // Eğer seçili branş bu ekipte yoksa temizle
-      if (formData.brans_id && !ekipBranslar.find(b => b.id === parseInt(formData.brans_id))) {
-        setFormData(prev => ({ ...prev, brans_id: '' }));
+      // Eğer seçili branşlar bu ekipte yoksa temizle
+      const ekipBransIds = ekipBranslar.map(b => b.id);
+      const gecerliBransIds = formData.brans_ids.filter(id => ekipBransIds.includes(id));
+      if (gecerliBransIds.length !== formData.brans_ids.length) {
+        setFormData(prev => ({
+          ...prev,
+          brans_ids: gecerliBransIds,
+          brans_id: gecerliBransIds[0] || ''
+        }));
       }
     } else {
       setFilteredBranslar([]);
@@ -52,9 +59,15 @@ export default function Kullanicilar() {
 
   const handleEdit = (kullanici) => {
     setEditingUser(kullanici);
+    // Mevcut branşları array olarak al
+    const mevcutBransIds = kullanici.branslar && Array.isArray(kullanici.branslar)
+      ? kullanici.branslar.map(b => b.id)
+      : (kullanici.brans_id ? [kullanici.brans_id] : []);
+
     setFormData({
       ekip_id: kullanici.ekip_id || '',
       brans_id: kullanici.brans_id || '',
+      brans_ids: mevcutBransIds,
       rol: kullanici.rol,
       aktif: kullanici.aktif,
     });
@@ -76,7 +89,7 @@ export default function Kullanicilar() {
 
   const handleDelete = async (id) => {
     if (!confirm('Bu kullanıcıyı silmek istediğinizden emin misiniz?')) return;
-    
+
     try {
       await userAPI.delete(id);
       alert('Kullanıcı silindi');
@@ -166,18 +179,24 @@ export default function Kullanicilar() {
                       {kullanici.ekip_adi || '-'}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {kullanici.brans_adi || '-'}
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-900 flex flex-wrap gap-1">
+                      {kullanici.branslar && kullanici.branslar.length > 0
+                        ? kullanici.branslar.map((b, idx) => (
+                          <span key={b.id || idx} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">
+                            {b.brans_adi}
+                          </span>
+                        ))
+                        : (kullanici.brans_adi || '-')
+                      }
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
-                      className={`px-2 py-1 text-xs rounded-full ${
-                        kullanici.aktif
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}
+                      className={`px-2 py-1 text-xs rounded-full ${kullanici.aktif
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                        }`}
                     >
                       {kullanici.aktif ? 'Aktif' : 'Pasif'}
                     </span>
@@ -210,7 +229,7 @@ export default function Kullanicilar() {
             <h2 className="text-2xl font-bold mb-4">
               Kullanıcı Düzenle: {editingUser.ad_soyad}
             </h2>
-            
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -232,23 +251,48 @@ export default function Kullanicilar() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Branş
+                  Branşlar {formData.rol === 'dizgici' && <span className="text-xs text-gray-500">(Birden fazla seçebilirsiniz)</span>}
                 </label>
-                <select
-                  className="input"
-                  value={formData.brans_id}
-                  onChange={(e) => setFormData({ ...formData, brans_id: e.target.value })}
-                  disabled={!formData.ekip_id}
-                >
-                  <option value="">Branş Seçin</option>
-                  {filteredBranslar.map((brans) => (
-                    <option key={brans.id} value={brans.id}>
-                      {brans.brans_adi}
-                    </option>
-                  ))}
-                </select>
-                {!formData.ekip_id && (
-                  <p className="text-xs text-gray-500 mt-1">Önce ekip seçin</p>
+                {!formData.ekip_id ? (
+                  <p className="text-xs text-gray-500">Önce ekip seçin</p>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-2">
+                    {filteredBranslar.length === 0 ? (
+                      <p className="text-sm text-gray-500">Bu ekipte branş yok</p>
+                    ) : (
+                      filteredBranslar.map((brans) => (
+                        <label key={brans.id} className="flex items-center hover:bg-gray-50 p-1 rounded cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                            checked={formData.brans_ids.includes(brans.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({
+                                  ...formData,
+                                  brans_ids: [...formData.brans_ids, brans.id],
+                                  brans_id: formData.brans_ids.length === 0 ? brans.id : formData.brans_id
+                                });
+                              } else {
+                                const newIds = formData.brans_ids.filter(id => id !== brans.id);
+                                setFormData({
+                                  ...formData,
+                                  brans_ids: newIds,
+                                  brans_id: newIds[0] || ''
+                                });
+                              }
+                            }}
+                          />
+                          <span className="ml-2 text-sm text-gray-700">{brans.brans_adi}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                )}
+                {formData.brans_ids.length > 0 && (
+                  <p className="text-xs text-green-600 mt-1">
+                    {formData.brans_ids.length} branş seçili
+                  </p>
                 )}
               </div>
 

@@ -12,7 +12,14 @@ router.get('/', authenticate, authorize('admin'), async (req, res, next) => {
       SELECT k.id, k.ad_soyad, k.email, k.rol, k.aktif,
              k.ekip_id, e.ekip_adi,
              k.brans_id, b.brans_adi,
-             k.olusturulma_tarihi
+             k.olusturulma_tarihi,
+             COALESCE(
+               (SELECT json_agg(json_build_object('id', kb.brans_id, 'brans_adi', br.brans_adi))
+                FROM kullanici_branslari kb
+                JOIN branslar br ON kb.brans_id = br.id
+                WHERE kb.kullanici_id = k.id),
+               '[]'
+             ) as branslar
       FROM kullanicilar k
       LEFT JOIN ekipler e ON k.ekip_id = e.id
       LEFT JOIN branslar b ON k.brans_id = b.id
@@ -32,7 +39,7 @@ router.get('/', authenticate, authorize('admin'), async (req, res, next) => {
 router.get('/:id', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     // Admin değilse sadece kendi bilgisini görebilir
     if (req.user.rol !== 'admin' && req.user.id !== parseInt(id)) {
       throw new AppError('Bu bilgilere erişim yetkiniz yok', 403);
@@ -42,7 +49,14 @@ router.get('/:id', authenticate, async (req, res, next) => {
       SELECT k.id, k.ad_soyad, k.email, k.rol, k.aktif,
              k.ekip_id, e.ekip_adi,
              k.brans_id, b.brans_adi,
-             k.olusturulma_tarihi
+             k.olusturulma_tarihi,
+             COALESCE(
+               (SELECT json_agg(json_build_object('id', kb.brans_id, 'brans_adi', br.brans_adi))
+                FROM kullanici_branslari kb
+                JOIN branslar br ON kb.brans_id = br.id
+                WHERE kb.kullanici_id = k.id),
+               '[]'
+             ) as branslar
       FROM kullanicilar k
       LEFT JOIN ekipler e ON k.ekip_id = e.id
       LEFT JOIN branslar b ON k.brans_id = b.id
@@ -66,67 +80,117 @@ router.get('/:id', authenticate, async (req, res, next) => {
 router.put('/:id', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     // Admin değilse sadece kendi bilgisini güncelleyebilir
     if (req.user.rol !== 'admin' && req.user.id !== parseInt(id)) {
       throw new AppError('Bu işlem için yetkiniz yok', 403);
     }
 
-    const { ad_soyad, email, ekip_id, brans_id, aktif } = req.body;
-    
-    // Admin değilse aktif durumunu değiştiremez
-    const updates = [];
-    const values = [];
-    let paramCount = 1;
+    const { ad_soyad, email, ekip_id, brans_id, brans_ids, aktif } = req.body;
 
-    if (ad_soyad) {
-      updates.push(`ad_soyad = $${paramCount++}`);
-      values.push(ad_soyad);
-    }
-    
-    if (email) {
-      updates.push(`email = $${paramCount++}`);
-      values.push(email);
-    }
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    if (req.user.rol === 'admin') {
-      if (ekip_id !== undefined) {
-        updates.push(`ekip_id = $${paramCount++}`);
-        values.push(ekip_id || null);
+      // Admin değilse aktif durumunu değiştiremez
+      const updates = [];
+      const values = [];
+      let paramCount = 1;
+
+      if (ad_soyad) {
+        updates.push(`ad_soyad = $${paramCount++}`);
+        values.push(ad_soyad);
       }
-      if (brans_id !== undefined) {
-        updates.push(`brans_id = $${paramCount++}`);
-        values.push(brans_id || null);
+
+      if (email) {
+        updates.push(`email = $${paramCount++}`);
+        values.push(email);
       }
-      if (req.body.rol) {
-        updates.push(`rol = $${paramCount++}`);
-        values.push(req.body.rol);
+
+      if (req.user.rol === 'admin') {
+        if (ekip_id !== undefined) {
+          updates.push(`ekip_id = $${paramCount++}`);
+          values.push(ekip_id || null);
+        }
+        // Eski tek branş alanını da güncelle (geriye uyumluluk için)
+        if (brans_id !== undefined) {
+          updates.push(`brans_id = $${paramCount++}`);
+          values.push(brans_id || null);
+        }
+        if (req.body.rol) {
+          updates.push(`rol = $${paramCount++}`);
+          values.push(req.body.rol);
+        }
+        if (aktif !== undefined) {
+          updates.push(`aktif = $${paramCount++}`);
+          values.push(aktif);
+        }
+
+        // Çoklu branş ataması (sadece admin yapabilir)
+        if (brans_ids !== undefined && Array.isArray(brans_ids)) {
+          // Önce mevcut branşları sil
+          await client.query('DELETE FROM kullanici_branslari WHERE kullanici_id = $1', [id]);
+
+          // Yeni branşları ekle
+          for (const bransId of brans_ids) {
+            if (bransId) {
+              await client.query(
+                'INSERT INTO kullanici_branslari (kullanici_id, brans_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                [id, bransId]
+              );
+            }
+          }
+
+          // İlk branşı eski alana da kaydet (geriye uyumluluk)
+          if (brans_ids.length > 0 && brans_ids[0]) {
+            updates.push(`brans_id = $${paramCount++}`);
+            values.push(brans_ids[0]);
+          }
+        }
       }
-      if (aktif !== undefined) {
-        updates.push(`aktif = $${paramCount++}`);
-        values.push(aktif);
+
+      let result;
+      if (updates.length > 0) {
+        values.push(id);
+        result = await client.query(
+          `UPDATE kullanicilar SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING id, ad_soyad, email, rol, ekip_id, brans_id, aktif`,
+          values
+        );
+
+        if (result.rows.length === 0) {
+          throw new AppError('Kullanıcı bulunamadı', 404);
+        }
+      } else {
+        // Sadece branş güncellemesi yapıldıysa
+        result = await client.query(
+          'SELECT id, ad_soyad, email, rol, ekip_id, brans_id, aktif FROM kullanicilar WHERE id = $1',
+          [id]
+        );
       }
+
+      // Güncellenmiş branşları getir
+      const bransResult = await client.query(`
+        SELECT kb.brans_id as id, b.brans_adi
+        FROM kullanici_branslari kb
+        JOIN branslar b ON kb.brans_id = b.id
+        WHERE kb.kullanici_id = $1
+      `, [id]);
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        data: {
+          ...result.rows[0],
+          branslar: bransResult.rows
+        }
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
-
-    if (updates.length === 0) {
-      throw new AppError('Güncellenecek alan bulunamadı', 400);
-    }
-
-    values.push(id);
-    
-    const result = await pool.query(
-      `UPDATE kullanicilar SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING id, ad_soyad, email, rol, ekip_id, brans_id, aktif`,
-      values
-    );
-
-    if (result.rows.length === 0) {
-      throw new AppError('Kullanıcı bulunamadı', 404);
-    }
-
-    res.json({
-      success: true,
-      data: result.rows[0]
-    });
   } catch (error) {
     next(error);
   }

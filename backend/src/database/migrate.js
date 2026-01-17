@@ -1,10 +1,11 @@
 import pool from '../config/database.js';
 import { createAdvancedFeatures } from './migrations/002_gelismis_ozellikler.js';
 import { createUserMessages } from './migrations/003_kullanici_mesajlari.js';
+import { createMultipleBranslar } from './migrations/004_coklu_brans.js';
 
 const createTables = async () => {
   const client = await pool.connect();
-  
+
   try {
     await client.query('BEGIN');
 
@@ -82,13 +83,16 @@ const createTables = async () => {
 
     await client.query('COMMIT');
     console.log('✅ Tüm tablolar başarıyla oluşturuldu');
-    
+
     // Gelişmiş özellikler migration'ını çalıştır
     await createAdvancedFeatures();
-    
+
     // Kullanıcı mesajları migration'ını çalıştır
     await createUserMessages();
-    
+
+    // Çoklu branş migration'ını çalıştır
+    await createMultipleBranslar();
+
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('❌ Tablo oluşturma hatası:', error);
