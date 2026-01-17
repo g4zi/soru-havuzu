@@ -89,9 +89,8 @@ export default function SoruDetay() {
       // URL'yi parse et
       const urlParts = url.split('/upload/');
       if (urlParts.length === 2) {
-        // fl_attachment parametresini ekle (dosya adını da belirt)
-        const safeFilename = encodeURIComponent(filename || 'dosya');
-        return `${urlParts[0]}/upload/fl_attachment:${safeFilename}/${urlParts[1]}`;
+        // fl_attachment parametresini ekle (sadece attachment flag, dosya adı olmadan)
+        return `${urlParts[0]}/upload/fl_attachment/${urlParts[1]}`;
       }
     }
     
