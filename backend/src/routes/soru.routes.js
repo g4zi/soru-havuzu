@@ -318,13 +318,30 @@ router.put('/:id(\\d+)', [
       fotograf_public_id = uploadResult.public_id;
     }
 
+    // Revize durumundaki soru güncellendiyse, durumu beklemede yap
+    let yeniDurum = soru.durum;
+    if (soru.durum === 'revize_gerekli') {
+      yeniDurum = 'beklemede';
+    }
+
     const result = await pool.query(
       `UPDATE sorular 
        SET soru_metni = $1, fotograf_url = $2, fotograf_public_id = $3, 
-           zorluk_seviyesi = $4, guncellenme_tarihi = CURRENT_TIMESTAMP
-       WHERE id = $5 RETURNING *`,
-      [soru_metni, fotograf_url, fotograf_public_id, zorluk_seviyesi, id]
+           zorluk_seviyesi = $4, durum = $5, guncellenme_tarihi = CURRENT_TIMESTAMP
+       WHERE id = $6 RETURNING *`,
+      [soru_metni, fotograf_url, fotograf_public_id, zorluk_seviyesi, yeniDurum, id]
     );
+
+    // Eğer revize durumundan güncellendiyse ve dizgici atanmışsa, dizgiciye bildirim gönder
+    if (soru.durum === 'revize_gerekli' && soru.dizgici_id) {
+      await createNotification(
+        soru.dizgici_id,
+        'Soru Revize Edildi',
+        `#${id} numaralı soru öğretmen tarafından revize edildi ve tekrar incelemeniz için hazır.`,
+        'info',
+        `/sorular/${id}`
+      );
+    }
 
     res.json({
       success: true,
