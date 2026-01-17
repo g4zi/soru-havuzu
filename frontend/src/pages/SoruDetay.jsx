@@ -307,6 +307,7 @@ export default function SoruDetay() {
             <h4 className="text-lg font-medium mb-3">📎 Ek Dosya</h4>
             <a
               href={soru.dosya_url}
+              download={soru.dosya_adi || 'dosya'}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition group"

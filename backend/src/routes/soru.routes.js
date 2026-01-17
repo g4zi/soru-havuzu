@@ -242,9 +242,15 @@ router.post('/', [
       const b64 = Buffer.from(file.buffer).toString('base64');
       const dataURI = `data:${file.mimetype};base64,${b64}`;
 
+      // Dosya adını ve uzantısını koru
+      const timestamp = Date.now();
+      const sanitizedFilename = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const publicId = `soru-havuzu/dosyalar/${timestamp}_${sanitizedFilename}`;
+
       const uploadResult = await cloudinary.uploader.upload(dataURI, {
-        folder: 'soru-havuzu/dosyalar',
-        resource_type: 'raw'
+        public_id: publicId,
+        resource_type: 'raw',
+        type: 'upload'
       });
 
       dosya_url = uploadResult.secure_url;
@@ -457,6 +463,19 @@ router.delete('/:id(\\d+)', authenticate, async (req, res, next) => {
         console.log(`Cloudinary görsel silindi: ${soru.fotograf_public_id}`, deleteResult);
       } catch (cloudinaryError) {
         console.error(`Cloudinary görsel silinemedi: ${soru.fotograf_public_id}`, cloudinaryError);
+        // Cloudinary hatası olsa bile soru silinmeye devam edecek
+      }
+    }
+
+    // Cloudinary'den dosyayı sil
+    if (soru.dosya_public_id) {
+      try {
+        const deleteResult = await cloudinary.uploader.destroy(soru.dosya_public_id, {
+          resource_type: 'raw'
+        });
+        console.log(`Cloudinary dosya silindi: ${soru.dosya_public_id}`, deleteResult);
+      } catch (cloudinaryError) {
+        console.error(`Cloudinary dosya silinemedi: ${soru.dosya_public_id}`, cloudinaryError);
         // Cloudinary hatası olsa bile soru silinmeye devam edecek
       }
     }
