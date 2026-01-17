@@ -88,6 +88,7 @@ export const soruAPI = {
   getStats: () => api.get('/sorular/stats/genel'),
   getDetayliStats: () => api.get('/sorular/stats/detayli'),
   getRapor: (params) => api.get('/sorular/rapor', { params }),
+  getYedek: () => api.get('/sorular/yedek'),
 };
 
 // Bildirim API

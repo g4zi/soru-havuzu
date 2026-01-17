@@ -9,6 +9,7 @@ export default function Raporlar() {
   const [baslangic, setBaslangic] = useState('');
   const [bitis, setBitis] = useState('');
   const [raporData, setRaporData] = useState(null);
+  const [yedekLoading, setYedekLoading] = useState(false);
 
   useEffect(() => {
     // Varsayılan tarih aralığını ayarla
@@ -227,6 +228,66 @@ export default function Raporlar() {
   const calculatePercentage = (value, total) => {
     if (!total || total === 0) return 0;
     return ((value / total) * 100).toFixed(1);
+  };
+
+  const downloadYedek = async () => {
+    setYedekLoading(true);
+    try {
+      cons className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">📊 Analiz ve Raporlar</h1>
+          <p className="mt-2 text-gray-600">Detaylı performans raporları oluşturun ve PDF olarak indirin</p>
+        </div>
+        <button
+          onClick={downloadYedek}
+          disabled={yedekLoading}
+          className="btn bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+        >
+          {yedekLoading ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+              <span>İndiriliyor...</span>
+            </>
+          ) : (
+            <>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+              </svg>
+              <span>💾 Tam Yedek İndir</span>
+            </>
+          )}
+        </button
+      // JSON dosyasını indir
+      const jsonStr = JSON.stringify(yedekData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `soru_havuzu_yedek_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      // Görselleri ve dosyaları indir linki göster
+      if (yedekData.sorular.some(s => s.fotograf_url || s.dosya_url)) {
+        const dosyaliSorular = yedekData.sorular.filter(s => s.fotograf_url || s.dosya_url);
+        let mesaj = `✅ JSON yedeği indirildi (${yedekData.toplam_soru} soru)\n\n`;
+        mesaj += `📁 ${dosyaliSorular.length} soruda görsel/dosya var.\n\n`;
+        mesaj += `Görselleri ve dosyaları indirmek için:\n`;
+        mesaj += `1. JSON dosyasını açın\n`;
+        mesaj += `2. fotograf_url ve dosya_url linklerini kullanın\n\n`;
+        mesaj += `Not: Cloudinary linkleri kalıcıdır ve doğrudan indirilebilir.`;
+        alert(mesaj);
+      } else {
+        alert(`✅ Yedek başarıyla indirildi!\n\nToplam ${yedekData.toplam_soru} soru kaydedildi.`);
+      }
+    } catch (error) {
+      console.error('Yedek indirme hatası:', error);
+      alert('Yedek indirilirken hata oluştu');
+    } finally {
+      setYedekLoading(false);
+    }
   };
 
   return (

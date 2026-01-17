@@ -934,4 +934,65 @@ router.get('/rapor', authenticate, authorize(['admin']), async (req, res, next) 
   }
 });
 
+// Admin için yedekleme endpoint'i
+router.get('/yedek', authenticate, authorize(['admin']), async (req, res, next) => {
+  try {
+    console.log('Yedekleme işlemi başlatıldı');
+
+    // Tüm soruları çek
+    const query = `
+      SELECT 
+        s.*,
+        u.ad_soyad as olusturan_ad,
+        b.brans_adi,
+        e.ekip_adi,
+        d.ad_soyad as dizgici_ad
+      FROM sorular s
+      LEFT JOIN kullanicilar u ON s.olusturan_id = u.id
+      LEFT JOIN branslar b ON s.brans_id = b.id
+      LEFT JOIN ekipler e ON b.ekip_id = e.id
+      LEFT JOIN kullanicilar d ON s.dizgici_id = d.id
+      ORDER BY s.olusturulma_tarihi DESC
+    `;
+
+    const result = await pool.query(query);
+    const sorular = result.rows;
+
+    console.log(`Toplam ${sorular.length} soru bulundu`);
+
+    // Soruları JSON olarak formatla
+    const yedekData = {
+      tarih: new Date().toISOString(),
+      toplam_soru: sorular.length,
+      sorular: sorular.map(soru => ({
+        id: soru.id,
+        soru_metni: soru.soru_metni,
+        latex_kodu: soru.latex_kodu,
+        zorluk_seviyesi: soru.zorluk_seviyesi,
+        durum: soru.durum,
+        olusturan: soru.olusturan_ad,
+        brans: soru.brans_adi,
+        ekip: soru.ekip_adi,
+        dizgici: soru.dizgici_ad,
+        fotograf_url: soru.fotograf_url,
+        dosya_url: soru.dosya_url,
+        dosya_adi: soru.dosya_adi,
+        olusturulma_tarihi: soru.olusturulma_tarihi,
+        guncelleme_tarihi: soru.guncelleme_tarihi,
+        dizgi_baslama_tarihi: soru.dizgi_baslama_tarihi,
+        dizgi_tamamlanma_tarihi: soru.dizgi_tamamlanma_tarihi,
+        red_neden: soru.red_neden
+      }))
+    };
+
+    res.json({
+      success: true,
+      data: yedekData
+    });
+  } catch (error) {
+    console.error('Yedekleme hatası:', error);
+    next(error);
+  }
+});
+
 export default router;
