@@ -948,7 +948,7 @@ router.get('/yedek', authenticate, authorize(['admin']), async (req, res, next) 
         e.ekip_adi,
         d.ad_soyad as dizgici_ad
       FROM sorular s
-      LEFT JOIN kullanicilar u ON s.olusturan_id = u.id
+      LEFT JOIN kullanicilar u ON s.olusturan_kullanici_id = u.id
       LEFT JOIN branslar b ON s.brans_id = b.id
       LEFT JOIN ekipler e ON b.ekip_id = e.id
       LEFT JOIN kullanicilar d ON s.dizgici_id = d.id
